@@ -1,0 +1,86 @@
+#include <LedControl.h>
+
+// Подключения MAX7219
+// DIN -> 11, CLK -> 13, CS -> 10
+LedControl lc = LedControl(11, 13, 10, 4); // 4 модуля (32x8)
+
+// Размер буфера (ширина = 4 матрицы × 8 столбцов)
+const int width = 32;
+byte buffer[8][width]; // [строка][столбец]
+
+// Пример текста — только для демонстрации
+// (в реальности можно сделать полноценный шрифт)
+byte letterH[8] = {
+  B10010010,
+  B10010010,
+  B11111110,
+  B11111110,
+  B10010010,
+  B10010010,
+  B10010010,
+  B00000000
+};
+
+byte letterI[8] = {
+  B00000000,
+  B00000000,
+  B11111110,
+  B11111110,
+  B00000000,
+  B00000000,
+  B00000000,
+  B00000000
+};
+
+// ------------------------------
+void setup() {
+  for (int i = 0; i < 4; i++) {
+    lc.shutdown(i, false);
+    lc.setIntensity(i, 5);
+    lc.clearDisplay(i);
+  }
+
+  // Инициализация буфера — напишем "HI" (16 столбцов)
+  for (int row = 0; row < 8; row++) {
+    for (int col = 0; col < 8; col++) {
+      buffer[row][col] = bitRead(letterH[row], 7 - col); // буква H
+      buffer[row][col + 9] = bitRead(letterI[row], 7 - col); // буква I (со смещением)
+    }
+  }
+}
+
+// ------------------------------
+void loop() {
+  scrollStep();
+  updateDisplays();
+  delay(100);
+}
+
+// ------------------------------
+// Циклический сдвиг буфера влево
+void scrollStep() {
+  for (int col = 0; col < width - 1; col++) {
+    for (int row = 0; row < 8; row++) {
+      buffer[row][col] = buffer[row][col + 1];
+    }
+  }
+
+  // добавим случайный новый столбец справа (для примера)
+  for (int row = 0; row < 8; row++) {
+    buffer[row][width - 1] = random(2); // 0 или 1
+  }
+}
+
+// ------------------------------
+// Выводим содержимое буфера на 4 матрицы
+void updateDisplays() {
+  for (int module = 0; module < 4; module++) {
+    for (int col = 0; col < 8; col++) {
+      byte colData = 0;
+      for (int row = 0; row < 8; row++) {
+        bitWrite(colData, row, buffer[row][module * 8 + col]);
+      }
+      lc.setColumn(module, col, colData);
+    }
+  }
+}
