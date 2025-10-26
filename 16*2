@@ -1,0 +1,32 @@
+#include <LiquidCrystal.h>  // подключение библиотеки
+
+LiquidCrystal lcd(12, 11, 10, 9, 8, 7); // передача в библиотеку подключаемых пинов микроконтроллера
+
+void setup() {
+  lcd.begin(16, 2);  // инициализация интерфейса ЖК-экрана
+  lcd.setCursor(0, 0);
+  lcd.print("Темп: 23.5 C");
+  lcd.setCursor(0, 1);
+  lcd.print("Режим: Авто");
+  }
+
+void loop() { // запустим вывод на дисплей счетчик
+ static unsigned long prev = 0;
+ static bool status = false;
+
+  if (millis() - prev > 2000) { // каждые 2 секунды обновление
+    prev = millis();
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Temp: 23.5 C");
+
+    lcd.setCursor(0, 1);
+    if (status)
+      lcd.print("Status: OK");
+    else
+      lcd.print("Mode: Auto");
+
+    status = !status;
+  }
+}
