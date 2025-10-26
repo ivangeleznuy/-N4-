@@ -1,0 +1,46 @@
+#include <LedControl.h>
+
+// Подключения MAX7219:
+// DIN -> 11 (MOSI)
+// CLK -> 13 (SCK)
+// CS  -> 10
+LedControl lc = LedControl(11, 13, 10, 1);
+
+void setup() {
+  lc.shutdown(0, false);   // Включаем дисплей
+  lc.setIntensity(0, 8);   // Яркость от 0 до 15
+  lc.clearDisplay(0);      // Очищаем матрицу
+
+  // --- Статический узор: сердечко ---
+  byte heart[8] = {
+    B00000000,
+    B01100110,
+    B11111111,
+    B11111111,
+    B01111110,
+    B00111100,
+    B00011000,
+    B00000000
+  };
+
+  for (int row = 0; row < 8; row++) {
+    lc.setRow(0, row, heart[row]);
+  }
+
+  delay(2000); // Задержка перед анимацией
+}
+
+void loop() {
+  
+  for (int col = 0; col < 8; col++) {
+    lc.clearDisplay(0);
+    lc.setLed(0, col, col, true); // зажигаем диагональ
+    delay(150);
+  }
+
+  for (int col = 7; col >= 0; col--) {
+    lc.clearDisplay(0);
+    lc.setLed(0, col, col, true); // обратно по диагонали
+    delay(150);
+  }
+}
