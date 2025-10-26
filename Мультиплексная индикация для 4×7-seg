@@ -1,0 +1,98 @@
+// Константы, определяющие, к каким пинам Arduino подключены сегменты и разряды.
+// Этот массив хранит номера пинов, подключенных к сегментам a, b, c, d, e, f, g, и dp.
+// (dp - десятичная точка).
+const uint8_t segPins[] = {6, 7, 8, 9, 10, 11, 12, 13}; 
+
+// Этот массив хранит номера пинов, управляющих разрядами (общим анодом).
+const uint8_t digitPins[] = {2, 3, 4, 5};              
+
+// Таблица битовых масок для цифр от 0 до 9.
+// gfedcba dp
+// Каждый бит соответствует сегменту (1 = выключен, 0 = включен).
+// Это для дисплея с общим анодом, где подача LOW включает сегмент.
+const uint8_t digits[10] = {
+  0b11000000, // 0: gfedcba (0b11000000)
+  0b11111001, // 1: gfedcba (0b11111001)
+  0b10100100, // 2: gfedcba (0b10100100)
+  0b10110000, // 3: gfedcba (0b10110000)
+  0b10011001, // 4: gfedcba (0b10011001)
+  0b10010010, // 5: gfedcba (0b10010010)
+  0b10000010, // 6: gfedcba (0b10000010)
+  0b11111000, // 7: gfedcba (0b11111000)
+  0b10000000, // 8: gfedcba (0b10000000)
+  0b10010000  // 9: gfedcba (0b10010000)
+};
+
+// Глобальные переменные для таймера счетчика.
+// 'static' означает, что они сохраняют свое значение между вызовами loop().
+static unsigned long counterTimer = 0; // Время последнего обновления счетчика (millis).
+static int deciSeconds = 0;             // Переменная, хранящая текущее значение счетчика.
+int numberToDisplay = 0;               // Число, которое нужно отобразить на дисплее.
+
+// Глобальные переменные для мультиплексирования.
+static unsigned long multiplexingTimer = 0; // Время последнего переключения разряда (micros).
+static uint8_t currentDigit = 0;             // Индекс текущего разряда (0-3).
+const unsigned long MULTIPLEXING_DELAY = 3000; // Пауза в микросекундах (3 мс) для каждого разряда.
+
+void setup() {
+  // Инициализация пинов как выходов.
+  for (uint8_t i = 0; i < 8; i++) {
+    pinMode(segPins[i], OUTPUT);
+  }
+  for (uint8_t i = 0; i < 4; i++) {
+    pinMode(digitPins[i], OUTPUT);
+    digitalWrite(digitPins[i], HIGH); // Выключить все разряды изначально (для общего анода HIGH выключает).
+  }
+}
+
+void loop() {
+  // === БЛОК ЛОГИКИ ТАЙМЕРА (НЕБЛОКИРУЮЩЕЕ ОЖИДАНИЕ) ===
+  // Обновляет значение счетчика каждые 100 миллисекунд.
+  if (millis() - counterTimer >= 100) {
+    counterTimer += 100; // Увеличиваем таймер на 100 для следующей проверки.
+    deciSeconds++;       // Увеличиваем счетчик на 1.
+    if (deciSeconds >= 10000) {
+      deciSeconds = 0;   // Сбрасываем счетчик, когда он достигает 10000.
+    }
+    // Обновляем число, которое нужно отобразить.
+    numberToDisplay = deciSeconds; 
+  }
+
+  // === БЛОК МУЛЬТИПЛЕКСИРОВАНИЯ (ВЫПОЛНЯЕТСЯ ПОСТОЯННО) ===
+  // Переключает разряды каждые 3 миллисекунды (3000 микросекунд).
+  if (micros() - multiplexingTimer >= MULTIPLEXING_DELAY) {
+    multiplexingTimer += MULTIPLEXING_DELAY;
+    
+    // Выключаем текущий разряд.
+    digitalWrite(digitPins[currentDigit], HIGH);
+
+    // Переходим к следующему разряду.
+    currentDigit++;
+    if (currentDigit > 3) {
+      currentDigit = 0;
+    }
+
+    // Извлекаем цифру для текущего разряда.
+    int value = numberToDisplay;
+    // Делим на степень 10, чтобы найти нужную цифру (например, 1000, 100, 10, 1).
+    int divisor = (int)pow(10, 3 - currentDigit);
+    int digitValue = (value / divisor) % 10;
+    // Получаем битовую маску для этой цифры.
+    uint8_t pattern = digits[digitValue];
+
+    // Зажигаем сегменты для текущей цифры.
+    // bitRead(pattern, 7-s) читает бит из маски,
+    // а digitalWrite устанавливает соответствующий пин.
+    for (int s = 0; s < 8; s++) {
+      digitalWrite(segPins[s], bitRead(pattern, 7 - s));
+    }
+    
+    // Добавляем десятичную точку, если нужно (для примера).
+    if (currentDigit == 1) { // Если это второй разряд (справа), включаем точку.
+      digitalWrite(segPins[7], LOW);
+    }
+
+    // Включаем новый разряд.
+    digitalWrite(digitPins[currentDigit], LOW);
+  }
+}
